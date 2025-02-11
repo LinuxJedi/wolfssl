@@ -7950,6 +7950,7 @@ int wc_ecc_free(ecc_key* key)
 #endif
 
 #ifdef WOLFSSL_SE050
+    wc_se050_erase_object(key->keyId);
     se050_ecc_free_key(key);
 #endif
 

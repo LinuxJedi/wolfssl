@@ -157,7 +157,13 @@ int wc_se050_erase_object(word32 id)
         status = sss_key_object_get_handle(&object, id);
     }
     if (status == kStatus_SSS_Success) {
-        sss_key_store_erase_key(&host_keystore, &object);
+        status = sss_key_store_erase_key(&host_keystore, &object);
+        if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+            printf("wc_se050_erase_object: erase key error, "
+                   "key: %d, error: %d\n", id, status);
+#endif
+        }
         sss_key_object_free(&object);
     }
     wolfSSL_CryptHwMutexUnLock();
@@ -420,7 +426,13 @@ int se050_aes_set_key(Aes* aes, const byte* key, word32 keylen,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_aes_set_key: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         ret = WC_HW_E;
@@ -846,7 +858,13 @@ int se050_rsa_create_key(struct RsaKey* key, int size, long e)
     if (status == kStatus_SSS_Success) {
         /* Try to delete existing key first. Ignore return since will fail
          * if no key exists */
-        sss_key_store_erase_key(&host_keystore, &keyPair);
+        status = sss_key_store_erase_key(&host_keystore, &keyPair);
+        if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+            printf("se050_rsa_create_key (expected fail): erase key error, "
+                   "key: %d, error: %d\n", keyId, status);
+#endif
+        }
 
         keyCreated = 1;
         status = sss_key_store_generate_key(&host_keystore, &keyPair,
@@ -892,7 +910,13 @@ int se050_rsa_create_key(struct RsaKey* key, int size, long e)
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &keyPair);
+            status = sss_key_store_erase_key(&host_keystore, &keyPair);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_rsa_create_key: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&keyPair);
         }
         if (ret == 0) {
@@ -1217,7 +1241,13 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_rsa_sign (expected fail): erase key error, "
+                           "key: %d, error: %d\n", keyId, status);
+#endif
+                }
 
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
@@ -1249,7 +1279,13 @@ int se050_rsa_sign(const byte* in, word32 inLen, byte* out,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_rsa_sign: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0) {
@@ -1379,7 +1415,13 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_rsa_verify (expected fail): erase key error, "
+                           "key: %d, error: %d\n", keyId, status);
+#endif
+                }
 
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
@@ -1434,7 +1476,13 @@ int se050_rsa_verify(const byte* in, word32 inLen, byte* out, word32 outLen,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_rsa_verify: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0) {
@@ -1560,7 +1608,14 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_rsa_public_encrypt (expected fail): "
+                           "erase key error, key: %d, error: %d\n",
+                           keyId, status);
+#endif
+                }
 
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
@@ -1592,7 +1647,13 @@ int se050_rsa_public_encrypt(const byte* in, word32 inLen, byte* out,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_rsa_public_encrypt: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0) {
@@ -1725,8 +1786,14 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
-
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_rsa_public_decrypt (expected fail): "
+                           "erase key error, key: %d, error: %d\n",
+                           keyId, status);
+#endif
+                }
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
                                                derSz, (keySz * 8), NULL, 0);
@@ -1757,7 +1824,13 @@ int se050_rsa_private_decrypt(const byte* in, word32 inLen, byte* out,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_rsa_public_decrypt: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0) {
@@ -2051,7 +2124,14 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_ecc_sign_hash_ex (expected fail): "
+                           "erase key error, key: %d, error: %d\n",
+                           keyId, status);
+#endif
+                }
 
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
@@ -2111,7 +2191,13 @@ int se050_ecc_sign_hash_ex(const byte* in, word32 inLen, MATH_INT_T* r, MATH_INT
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ecc_sign_hash_ex: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0)
@@ -2223,7 +2309,14 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &newKey);
+                status = sss_key_store_erase_key(&host_keystore, &newKey);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_ecc_verify_hash_ex (expected fail): "
+                           "erase key error, key: %d, error: %d\n",
+                           keyId, status);
+#endif
+                }
 
                 keyCreated = 1;
                 status = sss_key_store_set_key(&host_keystore, &newKey, derBuf,
@@ -2283,7 +2376,13 @@ int se050_ecc_verify_hash_ex(const byte* hash, word32 hashLen, MATH_INT_T* r,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ecc_verify_hash_ex: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0)
@@ -2497,7 +2596,13 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     if (status == kStatus_SSS_Success) {
         /* Try to delete existing key first. Ignore return since will fail
          * if no key exists */
-        sss_key_store_erase_key(&host_keystore, &keyPair);
+        status = sss_key_store_erase_key(&host_keystore, &keyPair);
+        if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+            printf("se050_ecc_create_key (expected fail): erase key error, "
+                   "key: %d, error: %d\n", keyId, status);
+#endif
+        }
 
         keyCreated = 1;
         status = sss_key_store_generate_key(&host_keystore, &keyPair,
@@ -2523,7 +2628,13 @@ int se050_ecc_create_key(struct ecc_key* key, int curve_id, int keySize)
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &keyPair);
+            status = sss_key_store_erase_key(&host_keystore, &keyPair);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ecc_create_key: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&keyPair);
         }
         if (ret == 0)
@@ -2551,6 +2662,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     sss_object_t        ref_public_key;
     sss_object_t        deriveKey;
     sss_derive_key_t    ctx_derive_key;
+    word32              keyIdAes;
     word32              keyId;
     int                 keySize;
     int                 keySizeBits;
@@ -2620,7 +2732,15 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
             if (status == kStatus_SSS_Success) {
                 /* Try to delete existing key first, ignore return since will
                  * fail if no key exists yet */
-                sss_key_store_erase_key(&host_keystore, &ref_public_key);
+                status = sss_key_store_erase_key(&host_keystore,
+                                                 &ref_public_key);
+                if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                    printf("se050_ecc_shared_secret (expected fail): "
+                           "erase key error, key: %d, error: %d\n",
+                           keyId, status);
+#endif
+                }
                 status = sss_key_store_set_key(&host_keystore, &ref_public_key,
                     derBuf, derSz, keySizeBits, NULL, 0);
                 keyCreated = 1;
@@ -2634,7 +2754,7 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         status = sss_key_object_init(&deriveKey, &host_keystore);
     }
     if (status == kStatus_SSS_Success) {
-        word32 keyIdAes = se050_allocate_key(SE050_AES_KEY);
+        keyIdAes = se050_allocate_key(SE050_AES_KEY);
         status = sss_key_object_allocate_handle(&deriveKey,
             keyIdAes,
             kSSS_KeyPart_Default,
@@ -2649,7 +2769,14 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         if (status == kStatus_SSS_Success) {
             /* Try to delete existing key first, ignore return since will
              * fail if no key exists yet */
-            sss_key_store_erase_key(&host_keystore, &deriveKey);
+            status = sss_key_store_erase_key(&host_keystore, &deriveKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ecc_shared_secret (expected fail): "
+                       "erase key error, key: %d, error: %d\n",
+                       keyIdAes, status);
+#endif
+            }
             status = sss_derive_key_dh(&ctx_derive_key, &ref_public_key,
                 &deriveKey);
         }
@@ -2667,7 +2794,13 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
         sss_derive_key_context_free(&ctx_derive_key);
     }
     if (deriveKeyCreated) {
-        sss_key_store_erase_key(&host_keystore, &deriveKey);
+        word32 estatus = sss_key_store_erase_key(&host_keystore, &deriveKey);
+        if (estatus != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+            printf("se050_ecc_shared_secret: erase key error, "
+                   "key: %d, error: %d\n", keyIdAes, estatus);
+#endif
+        }
         sss_key_object_free(&deriveKey);
     }
 
@@ -2678,7 +2811,13 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            status = sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ecc_shared_secret: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&ref_public_key);
         }
         if (ret == 0) {
@@ -2692,6 +2831,8 @@ int se050_ecc_shared_secret(ecc_key* private_key, ecc_key* public_key,
     printf("se050_ecc_shared_secret: ret %d, status %d, outlen %d\n", ret,
             status, *outlen);
 #endif
+
+    sss_key_store_context_free(&host_keystore);
 
     return ret;
 }
@@ -2747,7 +2888,13 @@ int se050_ed25519_create_key(ed25519_key* key)
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ed25519_create_key: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         ret = WC_HW_E;
@@ -2881,7 +3028,13 @@ int se050_ed25519_sign_msg(const byte* in, word32 inLen, byte* out,
 
     if (status != kStatus_SSS_Success) {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ed25519_sign_msg: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         ret = WC_HW_E;
@@ -2983,7 +3136,13 @@ int se050_ed25519_verify_msg(const byte* signature, word32 signatureLen,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &newKey);
+            status = sss_key_store_erase_key(&host_keystore, &newKey);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_ed25519_verify_msg: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&newKey);
         }
         if (ret == 0)
@@ -3075,7 +3234,13 @@ int se050_curve25519_create_key(curve25519_key* key, int keySize)
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &keyPair);
+            status = sss_key_store_erase_key(&host_keystore, &keyPair);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_curve25519_create_key: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&keyPair);
         }
         ret = WC_HW_E;
@@ -3209,7 +3374,13 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
         sss_derive_key_context_free(&ctx_derive_key);
     }
     if (deriveKeyCreated) {
-        sss_key_store_erase_key(&host_keystore, &deriveKey);
+        status = sss_key_store_erase_key(&host_keystore, &deriveKey);
+        if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+            printf("se050_curve25519_shared_secret: erase key error, "
+                   "key: %d, error: %d\n", keyIdAes, status);
+#endif
+        }
         sss_key_object_free(&deriveKey);
     }
 
@@ -3220,7 +3391,13 @@ int se050_curve25519_shared_secret(curve25519_key* private_key,
     }
     else {
         if (keyCreated) {
-            sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            status = sss_key_store_erase_key(&host_keystore, &ref_public_key);
+            if (status != kStatus_SSS_Success) {
+#ifdef SE050_DEBUG
+                printf("se050_curve25519_shared_secret: erase key error, "
+                       "key: %d, error: %d\n", keyId, status);
+#endif
+            }
             sss_key_object_free(&ref_public_key);
         }
         if (ret == 0)
