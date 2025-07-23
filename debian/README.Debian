@@ -1,0 +1,307 @@
+wolfSSL for Debian
+===================
+
+This package provides the wolfSSL embedded SSL/TLS library for Debian systems.
+
+Quick Start
+-----------
+
+To build wolfSSL Debian packages (recommended method):
+
+1. Ensure Docker is installed and running
+2. Run the build script:
+   ./debian/build-packages.sh
+3. Find packages in ./debian-packages/
+4. Install packages:
+   sudo dpkg -i debian-packages/libwolfssl*.deb
+
+That's it! The build script handles everything automatically including:
+- Creating source packages
+- Building binary packages
+- Testing installation
+- Extracting all artifacts
+
+Package Contents
+----------------
+
+* libwolfssl: The shared library runtime package
+* libwolfssl-dev: Development files including headers, static library, and pkg-config file
+
+Build Configuration
+-------------------
+
+This package is built with the following configure options:
+--enable-opensslcoexist --enable-cmac --with-eccminsz=192 --enable-ed25519
+--enable-ed448 --enable-md5 --enable-curve25519 --enable-curve448 --enable-aesccm
+--enable-aesxts --enable-aescfb --enable-keygen --enable-shake128 --enable-shake256
+--enable-wolfprovider --enable-rsapss --enable-scrypt
+
+Additional CFLAGS used:
+-DWOLFSSL_OLD_OID_SUM -DWOLFSSL_PUBLIC_ASN -DHAVE_FFDHE_3072 -DHAVE_FFDHE_4096
+-DWOLFSSL_DH_EXTRA -DWOLFSSL_PSS_SALT_LEN_DISCOVER -DWOLFSSL_PUBLIC_MP
+-DWOLFSSL_RSA_KEY_CHECK -DHAVE_FFDHE_Q -DHAVE_FFDHE_6144 -DHAVE_FFDHE_8192
+-DWOLFSSL_ECDSA_DETERMINISTIC_K -DWOLFSSL_VALIDATE_ECC_IMPORT -DRSA_MIN_SIZE=1024
+-DHAVE_AES_ECB -DWC_RSA_DIRECT -DWC_RSA_NO_PADDING -DACVP_VECTOR_TESTING
+-DWOLFSSL_ECDSA_SET_K
+
+Usage
+-----
+
+To use wolfSSL in your applications:
+
+1. Install the development package:
+   apt-get install libwolfssl-dev
+
+2. Include the headers in your C/C++ code:
+   #include <wolfssl/ssl.h>
+
+3. Link against the library:
+   gcc -o myapp myapp.c $(pkg-config --cflags --libs wolfssl)
+
+Features
+--------
+
+This build includes:
+- OpenSSL coexistence support
+- CMAC authentication
+- Ed25519 and Ed448 signature algorithms
+- Curve25519 and Curve448 for ECDH
+- Various AES modes (CCM, XTS, CFB)
+- Key generation support
+- SHAKE128/256 hash functions
+- wolfProvider for OpenSSL compatibility
+- RSA-PSS signatures
+- scrypt key derivation
+- FFDHE groups up to 8192 bits
+- ACVP vector testing support
+
+Documentation
+-------------
+
+For more information about wolfSSL:
+- Visit: https://www.wolfssl.com/
+- Documentation: /usr/share/doc/libwolfssl/
+- GitHub: https://github.com/wolfSSL/wolfssl
+
+Testing the Package
+-------------------
+
+To test the Debian packaging:
+
+1. Using Docker (recommended for non-Debian systems):
+   docker build -f debian/test-packaging.Dockerfile -t wolfssl-test .
+
+2. Using the test script:
+   ./debian/test-build.sh
+
+Building Packages
+-----------------
+
+### Method 1: Docker Build System (Recommended)
+
+The Docker-based build system creates both source and binary packages in an isolated environment:
+
+1. Build packages and extract artifacts:
+   ./debian/build-packages.sh
+
+This will:
+- Build both source and binary packages using Docker
+- Extract all artifacts to ./debian-packages/
+- Test package installation and functionality
+- Provide usage instructions
+
+Generated artifacts include:
+- libwolfssl_*.deb - Main library package
+- libwolfssl-dev_*.deb - Development package with headers
+- libwolfssl-dbgsym_*.deb - Debug symbols package
+- wolfssl_*.orig.tar.gz - Upstream source tarball
+- wolfssl_*.dsc - Source package description
+- wolfssl_*.debian.tar.xz - Debian packaging files
+- wolfssl_*_source.changes - Source package changes
+- wolfssl_*_amd64.changes - Binary package changes
+
+2. Manual Docker build (if you want to customize):
+   docker build -f debian/test-packaging.Dockerfile -t wolfssl-build .
+   mkdir -p ./artifacts
+   docker run --rm -v "$(pwd)/artifacts:/output" wolfssl-build sh -c "cp /artifacts/* /output/"
+
+### Method 2: Native Build (Debian/Ubuntu systems only)
+
+To rebuild the package natively:
+
+1. Install build dependencies:
+   sudo apt-get install build-essential debhelper devscripts autotools-dev autoconf automake libtool pkg-config
+
+2. Build source package:
+   ./debian/build-source-package.sh
+
+3. Build binary packages:
+   dpkg-buildpackage -b -us -uc
+
+### Method 3: Building from Source Package
+
+To build from the generated source package:
+
+1. Extract source package:
+   dpkg-source -x wolfssl_*.dsc
+
+2. Enter directory and build:
+   cd wolfssl-*/
+   dpkg-buildpackage -b -us -uc
+
+Package Installation
+--------------------
+
+To install the generated packages:
+
+1. Install all packages:
+   sudo dpkg -i debian-packages/libwolfssl*.deb
+   sudo apt-get install -f  # Fix any dependency issues
+
+2. Verify installation:
+   pkg-config --exists wolfssl && echo "wolfSSL pkg-config found"
+   ldconfig -p | grep wolfssl && echo "wolfSSL library found"
+   ls /usr/include/wolfssl/ssl.h && echo "wolfSSL headers installed"
+
+Package Upload and Distribution
+-------------------------------
+
+For uploading to Debian repositories:
+
+1. Source package upload:
+   dput <repository> debian-packages/wolfssl_*_source.changes
+
+2. Binary package upload (if accepted):
+   dput <repository> debian-packages/wolfssl_*_amd64.changes
+
+For package verification:
+   dpkg-deb -c debian-packages/libwolfssl_*.deb  # List package contents
+   dpkg-deb -I debian-packages/libwolfssl_*.deb  # Show package info
+   lintian debian-packages/wolfssl_*.dsc         # Check source package
+   lintian debian-packages/libwolfssl_*.deb      # Check binary packages
+
+Requirements
+------------
+
+### Docker Build System Requirements:
+- Docker installed and running
+- Sufficient disk space (at least 2GB free)
+- Internet connection for downloading base images
+
+### Native Build Requirements:
+- Debian-based system (Debian/Ubuntu/derivatives)
+- Build dependencies installed (see Method 2 above)
+- Git (for source tarball creation)
+- Sufficient disk space (at least 1GB free)
+
+Troubleshooting
+---------------
+
+### Common Docker Issues:
+
+1. Permission denied errors:
+   - Ensure your user is in the docker group: sudo usermod -aG docker $USER
+   - Log out and back in, or run: newgrp docker
+
+2. Build fails with "no space left on device":
+   - Clean up Docker: docker system prune -a
+   - Free up disk space on your system
+
+3. Network timeouts during build:
+   - Check internet connection
+   - Try building again (Docker will cache successful steps)
+
+### Common Native Build Issues:
+
+1. Missing dependencies:
+   - Install missing packages: sudo apt-get install <package-name>
+   - Run: sudo apt-get build-dep wolfssl (if available)
+
+2. autoreconf failures:
+   - Ensure all autotools are installed: autoconf automake libtool
+   - Clean and retry: ./debian/clean-for-packaging.sh && ./debian/build-source-package.sh
+
+3. stamp-h.in not found:
+   - This indicates cleaning scripts removed source files
+   - Restore from git: git checkout stamp-h.in
+   - Or regenerate: autoreconf -fiv
+
+4. dpkg-source format errors:
+   - Ensure upstream tarball exists: ls ../wolfssl_*.orig.tar.gz
+   - Clean source tree: ./debian/clean-for-packaging.sh
+   - Rebuild source package: ./debian/build-source-package.sh
+
+### Package Testing Issues:
+
+1. Package won't install:
+   - Check dependencies: apt-cache depends libwolfssl
+   - Force install: sudo dpkg -i --force-depends package.deb
+
+2. Library not found after installation:
+   - Update library cache: sudo ldconfig
+   - Check library path: ldconfig -p | grep wolfssl
+
+3. Headers not found:
+   - Verify dev package installed: dpkg -l | grep wolfssl-dev
+   - Check header location: find /usr/include -name "ssl.h" | grep wolfssl
+
+Build Scripts Reference
+-----------------------
+
+The Debian packaging includes several helper scripts:
+
+### Main Build Scripts:
+
+- **build-packages.sh**: Primary build script that builds packages and extracts artifacts
+  Usage: ./debian/build-packages.sh
+  Output: ./debian-packages/ directory with all artifacts
+
+- **test-packaging.Dockerfile**: Docker configuration for building and testing packages
+  Usage: docker build -f debian/test-packaging.Dockerfile -t wolfssl-test .
+
+- **build-source-package.sh**: Creates Debian source packages (.dsc, .orig.tar.gz, .debian.tar.xz)
+  Usage: ./debian/build-source-package.sh
+  Output: Source package files in parent directory
+
+### Helper Scripts:
+
+- **clean-for-packaging.sh**: Cleans source tree for packaging (removes build artifacts)
+  Usage: ./debian/clean-for-packaging.sh
+
+- **create-orig-tarball.sh**: Creates upstream source tarball from git repository
+  Usage: ./debian/create-orig-tarball.sh
+  Output: ../wolfssl_*.orig.tar.gz
+
+- **prepare-build.sh**: Prepares source tree and generates debian/control from templates
+  Usage: ./debian/prepare-build.sh
+
+- **test-build.sh**: Simple test script for native builds
+  Usage: ./debian/test-build.sh
+
+### Configuration Files:
+
+- **control.in**: Template for debian/control file (gets processed by prepare-build.sh)
+- **changelog.in**: Template for debian/changelog file
+- **rules**: Main Debian build rules file
+- **source/format**: Specifies source package format (3.0 quilt)
+- **source/options**: Source package options and ignore patterns
+
+### Workflow:
+
+1. Preparation: prepare-build.sh → generates debian/control
+2. Cleaning: clean-for-packaging.sh → removes build artifacts
+3. Tarball: create-orig-tarball.sh → creates upstream source
+4. Source Package: build-source-package.sh → creates .dsc and related files
+5. Binary Build: dpkg-buildpackage → creates .deb packages
+6. Testing: Package installation and functionality verification
+
+Support
+-------
+
+For issues related to the Debian packaging, please check:
+- Debian bug tracking system
+- wolfSSL GitHub issues: https://github.com/wolfSSL/wolfssl/issues
+
+For general wolfSSL support:
+- Email: support@wolfssl.com
+- Forums: https://www.wolfssl.com/forums/

@@ -447,8 +447,6 @@ MagicCrypto
 /out_temp
 
 # debian packaging
-debian/changelog
-debian/control
 *.deb
 
 # Ada/Alire files
