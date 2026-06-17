@@ -3929,6 +3929,9 @@ struct WOLFSSL_CTX {
     WC_RNG*         rng;          /* to be shared with WOLFSSL w/o locking */
 #endif
     wolfSSL_RefWithMutex ref;
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+    byte        noSharedInUse;    /* one live WOLFSSL may reference this CTX */
+#endif
     int         err;              /* error code in case of mutex not created */
 #ifndef NO_DH
     buffer      serverDH_P;
@@ -4387,6 +4390,8 @@ WOLFSSL_LOCAL
 int InitSSL_Ctx(WOLFSSL_CTX* ctx, WOLFSSL_METHOD* method, void* heap);
 WOLFSSL_LOCAL
 void FreeSSL_Ctx(WOLFSSL_CTX* ctx);
+WOLFSSL_LOCAL
+int wolfSSL_CTX_up_ref_internal(WOLFSSL_CTX* ctx);
 WOLFSSL_LOCAL
 void SSL_CtxResourceFree(WOLFSSL_CTX* ctx);
 

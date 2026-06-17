@@ -4159,6 +4159,86 @@
 
 /* Place any other flags or defines here */
 
+#if defined(WOLFSSL_NO_SHARED_OBJECTS) && !defined(WOLFSSL_NO_MUTABLE_GLOBALS)
+    #define WOLFSSL_NO_MUTABLE_GLOBALS
+#endif
+
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    #ifndef NO_SESSION_CACHE
+        #define NO_SESSION_CACHE
+    #endif
+    #ifndef NO_FILESYSTEM
+        #define NO_FILESYSTEM
+    #endif
+    #ifndef WOLFSSL_NO_OPENSSL_RAND_CB
+        #define WOLFSSL_NO_OPENSSL_RAND_CB
+    #endif
+    #ifndef WOLFSSL_NO_DEF_TICKET_ENC_CB
+        #define WOLFSSL_NO_DEF_TICKET_ENC_CB
+    #endif
+    #if !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_LEANPSK) && \
+        !defined(NO_WOLFSSL_MEMORY)
+        #define NO_WOLFSSL_MEMORY
+    #endif
+    #if !defined(XMALLOC_USER) && !defined(XMALLOC_OVERRIDE) && \
+        !defined(WOLFSSL_STATIC_MEMORY) && !defined(WOLFSSL_LEANPSK)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS requires XMALLOC_USER, XMALLOC_OVERRIDE, WOLFSSL_STATIC_MEMORY, or WOLFSSL_LEANPSK"
+    #endif
+    #if defined(OPENSSL_EXTRA) || defined(OPENSSL_ALL) || \
+        defined(OPENSSL_EXTRA_X509_SMALL) || \
+        defined(WOLFSSL_NGINX) || defined(WOLFSSL_HAPROXY) || \
+        defined(HAVE_LIGHTY)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with OpenSSL compatibility/server integration profiles"
+    #endif
+    #if defined(WC_RNG_SEED_CB)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with WC_RNG_SEED_CB"
+    #endif
+    #if defined(WOLF_CRYPTO_CB) || defined(WOLF_CRYPTO_CB_ONLY_AES) || \
+        defined(WOLFSSL_ASYNC_CRYPT)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with global crypto callback and async device registries"
+    #endif
+    #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with WOLFSSL_SYS_CRYPTO_POLICY"
+    #endif
+    #if defined(HAVE_ATEXIT)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with HAVE_ATEXIT"
+    #endif
+    #if defined(WOLFSSL_TRACK_MEMORY) || defined(WOLFSSL_TRACK_MEMORY_VERBOSE) || \
+        defined(WOLFSSL_TRACK_MEMORY_FULL) || defined(WOLFSSL_DEBUG_MEMORY) || \
+        defined(WOLFSSL_MEMORY_LOG) || defined(WOLFSSL_MALLOC_CHECK) || \
+        defined(WOLFSSL_MEM_FAIL_COUNT) || defined(WOLFSSL_FORCE_MALLOC_FAIL_TEST) || \
+        defined(WOLFSSL_CHECK_MEM_ZERO)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with global memory/debug tracking"
+    #endif
+    #if defined(DEBUG_WOLFSSL) || defined(WOLFSSL_DEBUG_CERTS) || \
+        defined(WOLFSSL_FUNC_TIME) || defined(HAVE_STACK_SIZE_VERBOSE)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with global logging/debug state"
+    #endif
+    #if defined(WC_RNG_BANK_SUPPORT)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with WC_RNG_BANK_SUPPORT"
+    #endif
+    #if defined(HAVE_CRL_MONITOR)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with HAVE_CRL_MONITOR"
+    #endif
+    #if defined(HAVE_WNR)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with HAVE_WNR"
+    #endif
+    #if defined(WOLFSSL_ARMASM_BARRIER_DETECT)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with WOLFSSL_ARMASM_BARRIER_DETECT"
+    #endif
+    #if defined(FP_ECC) || defined(HAVE_OID_ENCODING) || \
+        defined(ECC_CACHE_CURVE)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with global ECC caches"
+    #endif
+    #if defined(WOLFSSL_SNIFFER)
+        #error "WOLFSSL_NO_MUTABLE_GLOBALS is incompatible with WOLFSSL_SNIFFER"
+    #endif
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
+
+#if defined(WOLFSSL_NO_SHARED_OBJECTS) && defined(SINGLE_THREADED)
+    #error "WOLFSSL_NO_SHARED_OBJECTS requires thread-safe per-object ownership checks; do not define SINGLE_THREADED"
+#endif
+
 #if defined(WOLFSSL_MYSQL_COMPATIBLE) && defined(_WIN32) \
                                       && defined(HAVE_GMTIME_R)
     #undef HAVE_GMTIME_R /* don't trust macro with windows */

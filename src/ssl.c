@@ -327,6 +327,7 @@ int wc_OBJ_sn2nid(const char *sn)
 #if !defined(NO_RSA) || !defined(NO_DH) || defined(HAVE_ECC) || \
     (defined(OPENSSL_EXTRA) && defined(WOLFSSL_KEY_GEN) && !defined(NO_DSA))
 
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
 #define HAVE_GLOBAL_RNG /* consolidate flags for using globalRNG */
 static WC_RNG globalRNG;
 static volatile int initGlobalRNG = 0;
@@ -342,15 +343,20 @@ static int globalRNGMutex_valid = 0;
 #if defined(OPENSSL_EXTRA) && defined(HAVE_HASHDRBG)
 static WOLFSSL_DRBG_CTX* gDrbgDefCtx = NULL;
 #endif
+#endif /* !WOLFSSL_NO_MUTABLE_GLOBALS */
 
 WC_RNG* wolfssl_get_global_rng(void)
 {
     WC_RNG* ret = NULL;
 
+#ifdef HAVE_GLOBAL_RNG
     if (initGlobalRNG == 0)
         WOLFSSL_MSG("Global RNG no Init");
     else
         ret = &globalRNG;
+#else
+    WOLFSSL_MSG("Global RNG not available");
+#endif
 
     return ret;
 }
@@ -427,7 +433,11 @@ WC_RNG* wolfssl_make_rng(WC_RNG* rng, int* local)
 #ifdef HAVE_GLOBAL_RNG
         WOLFSSL_MSG("trying global RNG");
 #endif
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
         ret = wolfssl_make_global_rng();
+#else
+        ret = NULL;
+#endif
     }
 
     return ret;
@@ -520,6 +530,7 @@ static int wolfSSL_parse_cipher_list(WOLFSSL_CTX* ctx, WOLFSSL* ssl,
 
 /* prevent multiple mutex initializations */
 
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
 /* note, initRefCount is not used for thread synchronization, only for
  * bookkeeping while inits_count_mutex is held.
  */
@@ -531,6 +542,7 @@ static WC_THREADSHARED wolfSSL_Mutex inits_count_mutex
 #ifndef WOLFSSL_MUTEX_INITIALIZER
 static WC_THREADSHARED volatile int inits_count_mutex_valid = 0;
 #endif
+#endif /* !WOLFSSL_NO_MUTABLE_GLOBALS */
 
 #ifdef NO_TLS
 static const WOLFSSL_METHOD gNoTlsMethod;
@@ -547,6 +559,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
 
     WOLFSSL_ENTER("wolfSSL_CTX_new_ex");
 
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
     if (initRefCount == 0) {
         /* user no longer forced to call Init themselves */
         int ret = wolfSSL_Init();
@@ -557,6 +570,7 @@ WOLFSSL_CTX* wolfSSL_CTX_new_ex(WOLFSSL_METHOD* method, void* heap)
             return NULL;
         }
     }
+#endif
 
 #ifndef NO_TLS
     if (method == NULL)
@@ -657,10 +671,22 @@ WOLFSSL_CTX* wolfSSL_CTX_new(WOLFSSL_METHOD* method)
 #endif
 }
 
-/* increases CTX reference count to track proper time to "free" */
-int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
+static int wolfSSL_CTX_up_ref_ex(WOLFSSL_CTX* ctx, int internalRef)
 {
     int ret;
+
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+    if (!internalRef) {
+        return WOLFSSL_FAILURE;
+    }
+#else
+    (void)internalRef;
+#endif
+
+    if (ctx == NULL) {
+        return WOLFSSL_FAILURE;
+    }
+
     wolfSSL_RefWithMutexInc(&ctx->ref, &ret);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     return ((ret == 0) ? WOLFSSL_SUCCESS : WOLFSSL_FAILURE);
@@ -668,6 +694,17 @@ int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
     (void)ret;
     return WOLFSSL_SUCCESS;
 #endif
+}
+
+/* increases CTX reference count to track proper time to "free" */
+int wolfSSL_CTX_up_ref(WOLFSSL_CTX* ctx)
+{
+    return wolfSSL_CTX_up_ref_ex(ctx, 0);
+}
+
+int wolfSSL_CTX_up_ref_internal(WOLFSSL_CTX* ctx)
+{
+    return wolfSSL_CTX_up_ref_ex(ctx, 1);
 }
 
 WOLFSSL_ABI
@@ -1012,6 +1049,11 @@ static int DupSSL(WOLFSSL* dup, WOLFSSL* ssl)
 */
 WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl)
 {
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+    (void)ssl;
+    WOLFSSL_MSG("wolfSSL_write_dup disabled by WOLFSSL_NO_SHARED_OBJECTS");
+    return NULL;
+#else
     WOLFSSL* dup = NULL;
     int ret = 0;
 
@@ -1046,6 +1088,7 @@ WOLFSSL* wolfSSL_write_dup(WOLFSSL* ssl)
     WOLFSSL_LEAVE("wolfSSL_write_dup", ret);
 
     return dup;
+#endif /* WOLFSSL_NO_SHARED_OBJECTS */
 }
 
 
@@ -2358,9 +2401,13 @@ char* wolfSSL_ERR_error_string(unsigned long errNumber, char* data)
         return data;
     }
     else {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+        return NULL;
+#else
         static char tmp[WOLFSSL_MAX_ERROR_SZ] = {0};
         SetErrorString((int)errNumber, tmp);
         return tmp;
+#endif
     }
 }
 
@@ -3096,6 +3143,10 @@ static int wolfSSL_RAND_InitMutex(void);
  *
  * See further explanation below in wolfSSL_Init().
  */
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    #undef WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
+    #define WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS 0
+#else
 #ifndef WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS
     #if !defined(WOLFSSL_MUTEX_INITIALIZER) && !defined(SINGLE_THREADED) && \
             defined(WOLFSSL_ATOMIC_OPS) && defined(WOLFSSL_ATOMIC_INITIALIZER)
@@ -3118,8 +3169,10 @@ static int wolfSSL_RAND_InitMutex(void);
     static wolfSSL_Atomic_Int inits_count_mutex_atomic_initing_flag =
         WOLFSSL_ATOMIC_INITIALIZER(0);
 #endif /* WOLFSSL_CLEANUP_THREADSAFE_BY_ATOMIC_OPS && !WOLFSSL_MUTEX_INITIALIZER */
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 
-#if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT)
+#if defined(OPENSSL_EXTRA) && defined(HAVE_ATEXIT) && \
+    !defined(WOLFSSL_NO_MUTABLE_GLOBALS)
 static void AtExitCleanup(void)
 {
     if (initRefCount > 0) {
@@ -3139,6 +3192,11 @@ static void AtExitCleanup(void)
 WOLFSSL_ABI
 int wolfSSL_Init(void)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    WOLFSSL_ENTER("wolfSSL_Init");
+    WOLFSSL_MSG("WOLFSSL_NO_MUTABLE_GLOBALS: no global init required");
+    return WOLFSSL_SUCCESS;
+#else
     int ret = WOLFSSL_SUCCESS;
 #if !defined(NO_SESSION_CACHE) && defined(ENABLE_SESSION_CACHE_ROW_LOCK)
     int i;
@@ -3304,6 +3362,7 @@ int wolfSSL_Init(void)
     }
 
     return ret;
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 }
 
 #if defined(WOLFSSL_SYS_CRYPTO_POLICY)
@@ -5337,6 +5396,11 @@ int wolfSSL_SetHsDoneCb(WOLFSSL* ssl, HandShakeDoneCb cb, void* user_ctx)
 WOLFSSL_ABI
 int wolfSSL_Cleanup(void)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    WOLFSSL_ENTER("wolfSSL_Cleanup");
+    WOLFSSL_MSG("WOLFSSL_NO_MUTABLE_GLOBALS: no global cleanup required");
+    return WOLFSSL_SUCCESS;
+#else
     int ret = WOLFSSL_SUCCESS; /* Only the first error will be returned */
     int release = 0;
 #if !defined(NO_SESSION_CACHE)
@@ -5477,6 +5541,7 @@ int wolfSSL_Cleanup(void)
 #endif
 
     return ret;
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 }
 
 /* Returns 1 if name is a syntactically valid DNS FQDN per RFC 952/1123.
@@ -6132,7 +6197,11 @@ int wolfSSL_set_compression(WOLFSSL* ssl)
     int wolfSSL_add_all_algorithms(void)
     {
         WOLFSSL_ENTER("wolfSSL_add_all_algorithms");
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+        if (wolfSSL_Init() == WOLFSSL_SUCCESS)
+#else
         if (initRefCount != 0 || wolfSSL_Init() == WOLFSSL_SUCCESS)
+#endif
             return WOLFSSL_SUCCESS;
         else
             return WOLFSSL_FATAL_ERROR;
@@ -13075,6 +13144,12 @@ int wolfSSL_CIPHER_get_bits(const WOLFSSL_CIPHER *c, int *alg_bits)
 
 WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 {
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+    (void)ssl;
+    (void)ctx;
+    WOLFSSL_MSG("wolfSSL_set_SSL_CTX disabled by WOLFSSL_NO_SHARED_OBJECTS");
+    return NULL;
+#else
     int ret;
     /* This method requires some explanation. Its sibling is
      *   int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
@@ -13253,6 +13328,7 @@ WOLFSSL_CTX* wolfSSL_set_SSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx)
 #endif
 
     return ssl->ctx;
+#endif /* WOLFSSL_NO_SHARED_OBJECTS */
 }
 
 

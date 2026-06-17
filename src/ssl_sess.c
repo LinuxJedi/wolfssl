@@ -3849,6 +3849,10 @@ WOLFSSL_SESSION* wolfSSL_SESSION_new(void)
  * return WOLFSSL_SUCCESS on success and WOLFSSL_FAILURE on error */
 int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
 {
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+    (void)session;
+    return WOLFSSL_FAILURE;
+#else
     int ret;
 
     session = ClientSessionToSession(session);
@@ -3867,6 +3871,7 @@ int wolfSSL_SESSION_up_ref(WOLFSSL_SESSION* session)
 #endif
 
     return WOLFSSL_SUCCESS;
+#endif /* WOLFSSL_NO_SHARED_OBJECTS */
 }
 
 /**
@@ -4700,4 +4705,3 @@ int wolfSSL_SESSION_is_resumable(const WOLFSSL_SESSION *s)
 #endif /* OPENSSL_EXTRA */
 
 #endif /* !WOLFSSL_SSL_SESS_INCLUDED */
-

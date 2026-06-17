@@ -291,7 +291,7 @@ This library contains implementation for the random number generator.
 #define OUTPUT_BLOCK_LEN  (WC_SHA256_DIGEST_SIZE)
 #define MAX_REQUEST_LEN   (0x10000)
 
-#ifdef WC_RNG_SEED_CB
+#if defined(WC_RNG_SEED_CB) && !defined(WOLFSSL_NO_MUTABLE_GLOBALS)
 
 #ifndef HAVE_FIPS
 static wc_RngSeed_Cb seedCb = wc_GenerateSeed;
@@ -358,6 +358,7 @@ static int Hash512_DRBG_Instantiate(DRBG_SHA512_internal* drbg,
 static int Hash512_DRBG_Uninstantiate(DRBG_SHA512_internal* drbg);
 #endif
 
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
 /* Runtime DRBG disable state.
  * These flags control which DRBG type is used for new WC_RNG instances and
  * may be toggled at runtime (e.g. NSA Suite 2.0 threads disable SHA-256).
@@ -430,6 +431,17 @@ static int UnlockDrbgState(void)
     return 0;
 #endif
 }
+#else
+int wc_DrbgState_MutexInit(void)
+{
+    return 0;
+}
+
+int wc_DrbgState_MutexFree(void)
+{
+    return 0;
+}
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 
 static int wc_RNG_HealthTestLocal(WC_RNG* rng, int reseed, void* heap,
                                   int devId);
@@ -1619,7 +1631,20 @@ int wc_RNG_TestSeed(const byte* seed, word32 seedSz)
 }
 /* Runtime DRBG disable/enable API -- only available in non-selftest and
  * FIPS v7+ builds (older FIPS/selftest random.c doesn't have these) */
-#if !defined(HAVE_SELFTEST) && \
+#if defined(WOLFSSL_NO_MUTABLE_GLOBALS)
+#ifndef NO_SHA256
+int wc_Sha256Drbg_Disable(void) { return NOT_COMPILED_IN; }
+int wc_Sha256Drbg_Enable(void) { return NOT_COMPILED_IN; }
+int wc_Sha256Drbg_IsDisabled(void)
+{
+#ifdef WOLFSSL_DRBG_SHA512
+    return 1;
+#else
+    return 0;
+#endif
+}
+#endif /* !NO_SHA256 */
+#elif !defined(HAVE_SELFTEST) && \
     (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
 #ifndef NO_SHA256
 int wc_Sha256Drbg_Disable(void)
@@ -1670,6 +1695,11 @@ int wc_Sha256Drbg_IsDisabled(void) { return 1; } /* always disabled */
 #endif /* !HAVE_SELFTEST && (!HAVE_FIPS || FIPS v7+) */
 
 #ifdef WOLFSSL_DRBG_SHA512
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+int wc_Sha512Drbg_Disable(void) { return NOT_COMPILED_IN; }
+int wc_Sha512Drbg_Enable(void) { return NOT_COMPILED_IN; }
+int wc_Sha512Drbg_IsDisabled(void) { return 0; }
+#else
 int wc_Sha512Drbg_Disable(void)
 {
     int ret = LockDrbgState();
@@ -1705,6 +1735,7 @@ int wc_Sha512Drbg_IsDisabled(void)
     UnlockDrbgState();
     return val;
 }
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 #endif /* WOLFSSL_DRBG_SHA512 */
 
 #endif /* HAVE_HASHDRBG */
@@ -1780,7 +1811,15 @@ static int _InitRng(WC_RNG* rng, byte* nonce, word32 nonceSz,
 
     /* Select DRBG type: prefer SHA-512 unless disabled or not compiled.
      * Hold the mutex for a consistent snapshot of both disable flags. */
-#if !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+#ifdef WOLFSSL_DRBG_SHA512
+    rng->drbgType = WC_DRBG_SHA512;
+#elif !defined(NO_SHA256) && !defined(WOLFSSL_NO_SHA256_DRBG)
+    rng->drbgType = WC_DRBG_SHA256;
+#else
+    return BAD_STATE_E;
+#endif
+#elif !defined(HAVE_SELFTEST) && (!defined(HAVE_FIPS) || FIPS_VERSION3_GE(7,0,0))
     ret = LockDrbgState();
     if (ret != 0)
         return ret;

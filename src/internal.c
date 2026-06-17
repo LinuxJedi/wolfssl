@@ -7039,6 +7039,39 @@ int InitSSL_Suites(WOLFSSL* ssl)
     return WOLFSSL_SUCCESS;
 }
 
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+static int ReserveNoSharedCtx(WOLFSSL_CTX* ctx)
+{
+    int ret;
+    int unlockRet;
+
+    ret = wolfSSL_RefWithMutexLock(&ctx->ref);
+    if (ret != 0)
+        return BAD_MUTEX_E;
+
+    if (ctx->noSharedInUse)
+        ret = BAD_FUNC_ARG;
+    else {
+        ctx->noSharedInUse = 1;
+        ret = WOLFSSL_SUCCESS;
+    }
+
+    unlockRet = wolfSSL_RefWithMutexUnlock(&ctx->ref);
+    if (unlockRet != 0 && ret == WOLFSSL_SUCCESS)
+        ret = BAD_MUTEX_E;
+
+    return ret;
+}
+
+static void ReleaseNoSharedCtx(WOLFSSL_CTX* ctx)
+{
+    if (ctx != NULL && wolfSSL_RefWithMutexLock(&ctx->ref) == 0) {
+        ctx->noSharedInUse = 0;
+        (void)wolfSSL_RefWithMutexUnlock(&ctx->ref);
+    }
+}
+#endif /* WOLFSSL_NO_SHARED_OBJECTS */
+
 /* This function inherits a WOLFSSL_CTX's fields into an SSL object.
    It is used during initialization and to switch an ssl's CTX with
    wolfSSL_Set_SSL_CTX.  Requires ssl->suites alloc and ssl-arrays with PSK
@@ -7069,14 +7102,27 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
     /* decrement previous CTX reference count if exists.
      * This should only happen if switching ctxs!*/
     if (!newSSL) {
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+        return BAD_FUNC_ARG;
+#else
         WOLFSSL_MSG("freeing old ctx to decrement reference count. Switching ctx.");
         wolfSSL_CTX_free(ssl->ctx);
+#endif
     }
 
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+    ret = ReserveNoSharedCtx(ctx);
+    if (ret != WOLFSSL_SUCCESS)
+        return ret;
+#endif
+
     /* increment CTX reference count */
-    ret = wolfSSL_CTX_up_ref(ctx);
+    ret = wolfSSL_CTX_up_ref_internal(ctx);
 #ifdef WOLFSSL_REFCNT_ERROR_RETURN
     if (ret != WOLFSSL_SUCCESS) {
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+        ReleaseNoSharedCtx(ctx);
+#endif
         return ret;
     }
 #else
@@ -7088,7 +7134,7 @@ int SetSSL_CTX(WOLFSSL* ssl, WOLFSSL_CTX* ctx, int writeDup)
      * handshake */
 #if defined(WOLFSSL_HAPROXY)
     if (ssl->initial_ctx == NULL) {
-        ret = wolfSSL_CTX_up_ref(ctx);
+        ret = wolfSSL_CTX_up_ref_internal(ctx);
         if (ret == WOLFSSL_SUCCESS) {
             ssl->initial_ctx = ctx; /* Save access to session key materials */
         }
@@ -9543,8 +9589,12 @@ void FreeSSL(WOLFSSL* ssl, void* heap)
     wc_MemZero_Check(ssl, sizeof(*ssl));
 #endif
     XFREE(ssl, heap, DYNAMIC_TYPE_SSL);
-    if (ctx)
+    if (ctx) {
+#ifdef WOLFSSL_NO_SHARED_OBJECTS
+        ReleaseNoSharedCtx(ctx);
+#endif
         FreeSSL_Ctx(ctx); /* will decrement and free underlying CTX if 0 */
+    }
     (void)heap;
 }
 

@@ -406,7 +406,9 @@ int wc_local_InitDownDone(wc_init_state_t *s)
     return 0;
 }
 
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
 static WC_DECLARE_INIT_STATE(wolfcrypt_init_state);
+#endif
 
 #if defined(__aarch64__) && defined(WOLFSSL_ARMASM_BARRIER_DETECT)
 int aarch64_use_sb = 0;
@@ -418,6 +420,11 @@ int aarch64_use_sb = 0;
 WOLFSSL_ABI
 int wolfCrypt_Init(void)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    WOLFSSL_ENTER("wolfCrypt_Init");
+    WOLFSSL_MSG("WOLFSSL_NO_MUTABLE_GLOBALS: no global wolfCrypt init required");
+    return 0;
+#else
     int ret;
 #if defined(HAVE_THREAD_LS) && !defined(NO_THREAD_LS) && defined(__GNUC__)
     /* If thread-local storage is available, use it to prevent deadlock on
@@ -770,6 +777,7 @@ int wolfCrypt_Init(void)
         return wc_local_InitUpDone(&wolfcrypt_init_state);
     }
     /* not reached */
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 }
 
 #if defined(WOLFSSL_TRACK_MEMORY_VERBOSE) && !defined(WOLFSSL_STATIC_MEMORY)
@@ -790,6 +798,11 @@ long wolfCrypt_heap_peakBytes_checkpoint(void) {
 WOLFSSL_ABI
 int wolfCrypt_Cleanup(void)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    WOLFSSL_ENTER("wolfCrypt_Cleanup");
+    WOLFSSL_MSG("WOLFSSL_NO_MUTABLE_GLOBALS: no global wolfCrypt cleanup required");
+    return 0;
+#else
     int ret;
 
     ret = wc_local_InitDown(&wolfcrypt_init_state);
@@ -929,6 +942,7 @@ int wolfCrypt_Cleanup(void)
     }
 
     /* not reached */
+#endif /* WOLFSSL_NO_MUTABLE_GLOBALS */
 }
 
 #ifndef NO_FILESYSTEM

@@ -105,28 +105,44 @@ void *z_realloc(void *ptr, size_t size)
 
 
 /* Set these to default values initially. */
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
 static wolfSSL_Malloc_cb  malloc_function = NULL;
 static wolfSSL_Free_cb    free_function = NULL;
 static wolfSSL_Realloc_cb realloc_function = NULL;
+#endif
 
 int wolfSSL_SetAllocators(wolfSSL_Malloc_cb  mf,
                           wolfSSL_Free_cb    ff,
                           wolfSSL_Realloc_cb rf)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    (void)mf;
+    (void)ff;
+    (void)rf;
+    return NOT_COMPILED_IN;
+#else
     malloc_function = mf;
     free_function = ff;
     realloc_function = rf;
     return 0;
+#endif
 }
 
 int wolfSSL_GetAllocators(wolfSSL_Malloc_cb*  mf,
                           wolfSSL_Free_cb*    ff,
                           wolfSSL_Realloc_cb* rf)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    if (mf) *mf = NULL;
+    if (ff) *ff = NULL;
+    if (rf) *rf = NULL;
+    return NOT_COMPILED_IN;
+#else
     if (mf) *mf = malloc_function;
     if (ff) *ff = free_function;
     if (rf) *rf = realloc_function;
     return 0;
+#endif
 }
 
 #ifdef WOLFSSL_MEM_FAIL_COUNT
@@ -970,24 +986,38 @@ int wolfSSL_GetMemStats(WOLFSSL_HEAP* heap, WOLFSSL_MEM_STATS* stats)
  * XMALLOC/XFREE
  * NOT thread safe, should be set once before any expected XMALLOC XFREE calls
  */
+#ifndef WOLFSSL_NO_MUTABLE_GLOBALS
 static void* globalHeapHint = NULL;
+#define WOLFSSL_GLOBAL_HEAP_HINT globalHeapHint
+#else
+#define WOLFSSL_GLOBAL_HEAP_HINT NULL
+#endif
 
 
 /* Used to set a new global heap hint. Returns a pointer to the current global
  * heap hint before being set. */
 void* wolfSSL_SetGlobalHeapHint(void* heap)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    (void)heap;
+    return NULL;
+#else
     void *oldHint = globalHeapHint;
 
     globalHeapHint = heap;
     return oldHint;
+#endif
 }
 
 
 /* returns a pointer to the current global heap hint */
 void* wolfSSL_GetGlobalHeapHint(void)
 {
+#ifdef WOLFSSL_NO_MUTABLE_GLOBALS
+    return NULL;
+#else
     return globalHeapHint;
+#endif
 }
 
 
@@ -1009,7 +1039,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
 #endif
 
     /* if no heap hint then use dynamic memory*/
-    if (heap == NULL && globalHeapHint == NULL) {
+    if (heap == NULL && WOLFSSL_GLOBAL_HEAP_HINT == NULL) {
         #ifdef WOLFSSL_HEAP_TEST
             /* allow using malloc for creating ctx and method */
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
@@ -1048,7 +1078,7 @@ void* wolfSSL_Malloc(size_t size, void* heap, int type)
         WOLFSSL_HEAP*      mem;
 
         if (hint == NULL) {
-            hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
+            hint = (WOLFSSL_HEAP_HINT*)WOLFSSL_GLOBAL_HEAP_HINT;
         #ifdef WOLFSSL_DEBUG_MEMORY
             fprintf(stderr, "(Using global heap hint %p) ", hint);
         #endif
@@ -1197,7 +1227,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
         }
     #endif
 
-        if (heap == NULL && globalHeapHint == NULL) {
+        if (heap == NULL && WOLFSSL_GLOBAL_HEAP_HINT == NULL) {
         #ifdef WOLFSSL_HEAP_TEST
             /* allow using malloc for creating ctx and method */
             if (type == DYNAMIC_TYPE_CTX || type == DYNAMIC_TYPE_METHOD ||
@@ -1231,7 +1261,7 @@ void wolfSSL_Free(void *ptr, void* heap, int type)
             word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
             if (hint == NULL) {
-                hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
+                hint = (WOLFSSL_HEAP_HINT*)WOLFSSL_GLOBAL_HEAP_HINT;
             #ifdef WOLFSSL_DEBUG_MEMORY
                 fprintf(stderr, "(Using global heap hint %p) ", hint);
             #endif
@@ -1344,7 +1374,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
     }
 #endif
 
-    if (heap == NULL && globalHeapHint == NULL) {
+    if (heap == NULL && WOLFSSL_GLOBAL_HEAP_HINT == NULL) {
         #ifdef WOLFSSL_HEAP_TEST
             WOLFSSL_MSG("ERROR null heap hint passed in to XREALLOC");
         #endif
@@ -1360,7 +1390,7 @@ void* wolfSSL_Realloc(void *ptr, size_t size, void* heap, int type)
         word32 padSz = -(int)sizeof(wc_Memory) & (WOLFSSL_STATIC_ALIGN - 1);
 
         if (hint == NULL) {
-            hint = (WOLFSSL_HEAP_HINT*)globalHeapHint;
+            hint = (WOLFSSL_HEAP_HINT*)WOLFSSL_GLOBAL_HEAP_HINT;
         #ifdef WOLFSSL_DEBUG_MEMORY
             fprintf(stderr, "(Using global heap hint %p) ", hint);
         #endif
